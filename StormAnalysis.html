@@ -69,12 +69,55 @@ img {
 </div>
 <div id="loading-and-processing-raw-data" class="section level2">
 <h2>Loading and Processing Raw Data</h2>
-<p>The raw data for this research was obtained from <a href="https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2">this link</a> the Coursera Reproducible Research course website for Peer Assessment 2. However, the data originally came from the United States National Oceanic and Atmospheric Administration’s (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.</p>
+<p>The raw data for this research was obtained from <a href="https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2">this link</a> from the Coursera Reproducible Research course website for Peer Assessment 2. However, the data originally came from the United States National Oceanic and Atmospheric Administration’s (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.</p>
 <div id="reading-in-the-data" class="section level3">
 <h3>Reading in the Data</h3>
 <p>The data is originally in csv fomat and compressed with the bz2 algorithm. However, the read.csv function can read in this type of data without decompressing it first.</p>
 <pre class="r"><code>sdata &lt;- read.csv(&quot;repdata-data-StormData.csv.bz2&quot;, header = TRUE)</code></pre>
-<p>The result is a data set of 902297, 1 variables and 902297, 1 observations.</p>
+<p>The result is a data set of 37 variables and 902297 observations.</p>
+</div>
+<div id="data-processing" class="section level3">
+<h3>Data Processing</h3>
+<p>In the first section of our analysis, we are going to be looking at events which are harmful to human health. We assume that ‘harmful to human health’ means there must be at least one injury or death related to the observation. We will create a data set that only includes observations with at least one death or injury and sort them based on # of deaths and injuries.</p>
+<pre class="r"><code>mdata &lt;- sdata[sdata$INJURIES &gt; 0 | sdata$FATALITIES &gt; 0, ]
+library(plyr)
+mdata &lt;- arrange(mdata, FATALITIES, INJURIES, decreasing = TRUE)</code></pre>
+<p>One of the columns we are interested in is the type of event (variable EVTYPE). A quick look at this variable using str shows that this is a factor variable with 985 levels.</p>
+<pre class="r"><code>str(mdata$EVTYPE)</code></pre>
+<pre><code>##  Factor w/ 985 levels &quot;   HIGH SURF ADVISORY&quot;,..: 275 834 834 834 130 834 834 130 130 834 ...</code></pre>
+<p>However, now that we have removed observations with no injuries or fatalities, we can use the aggregate function to see how many event types are still left in our data set.</p>
+<pre class="r"><code>sum_mdata &lt;- aggregate(cbind(FATALITIES, INJURIES) ~ EVTYPE, data = mdata, sum)</code></pre>
+<p>With this new data set, there are only 220 events in our data set.</p>
+<p>We can also add a new column that contains the total number of fatalities + injuries for each event type. To make the data easier to read, we will sorts the data in decreasing order on this new column.</p>
+<pre class="r"><code>library(plyr)
+sum_mdata$Total &lt;- sum_mdata$INJURIES + sum_mdata$FATALITIES
+sum_mdata &lt;- arrange(sum_mdata, Total, decreasing = TRUE)</code></pre>
+<p>Looking at the first 10 columns of the data set, we can see that there is a clear winner in all 3 columns: tornados.</p>
+<pre class="r"><code>head(sum_mdata, 10)</code></pre>
+<pre><code>##               EVTYPE FATALITIES INJURIES Total
+## 1            TORNADO       5633    91346 96979
+## 2     EXCESSIVE HEAT       1903     6525  8428
+## 3          TSTM WIND        504     6957  7461
+## 4              FLOOD        470     6789  7259
+## 5          LIGHTNING        816     5230  6046
+## 6               HEAT        937     2100  3037
+## 7        FLASH FLOOD        978     1777  2755
+## 8          ICE STORM         89     1975  2064
+## 9  THUNDERSTORM WIND        133     1488  1621
+## 10      WINTER STORM        206     1321  1527</code></pre>
+<p>It should be noted that while some event types should be combined for a more detailed analysis (for example: ‘TSTM WIND’ and ‘THUNDERSTORM WIND’) even adding these two columns together will only account to 10% of the total injuries and fatalities cause by tornados. Therefore, combining events was left out of this portion of the analysis as it was deemed unnecessary to answer the question.</p>
+</div>
+<div id="remove-this-later-if-not-needed" class="section level3">
+<h3>Remove this later if not needed</h3>
+<p>However, not all of these events are unique. Some labels have the same intent, but slightly different spelling, abbreviations, wording, or captalization. For example, searching the levels of EVTYPE for the words ‘blowing snow’ while ignoring case turns up 2 results, both of which are actually the same event type.</p>
+<pre class="r"><code>grep(&quot;blowing snow&quot;, levels(sum_mdata$EVTYPE), ignore.case=TRUE, value=TRUE)</code></pre>
+<pre><code>## [1] &quot;blowing snow&quot;                   &quot;Blowing Snow&quot;                  
+## [3] &quot;BLOWING SNOW&quot;                   &quot;BLOWING SNOW- EXTREME WIND CHI&quot;
+## [5] &quot;BLOWING SNOW &amp; EXTREME WIND CH&quot; &quot;BLOWING SNOW/EXTREME WIND CHIL&quot;
+## [7] &quot;HEAVY SNOW ANDBLOWING SNOW&quot;     &quot;HEAVY SNOW/BLOWING SNOW&quot;       
+## [9] &quot;SNOW/BLOWING SNOW&quot;</code></pre>
+<p>Some of these categories need to be combined before continuing analysis. This can be accomplished by grouping events into a smaller number of categories by using the Storm Data Event Table in the National Weather Service <a href="https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf">Storm Data Documentation</a>. There are 48 storm events in this table, as opposed to the 985 unique event labels contained in the raw data set.</p>
+<p>We add a new Category column onto our data set and assign</p>
 </div>
 </div>
 </div>

@@ -6,7 +6,7 @@ In this report we aim to describe ...
 
 ## Loading and Processing Raw Data
 
-The raw data for this research was obtained from [this link](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2) the Coursera Reproducible Research course website for Peer Assessment 2. However, the data originally came from the United States National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
+The raw data for this research was obtained from [this link](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2) from the Coursera Reproducible Research course website for Peer Assessment 2. However, the data originally came from the United States National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
 
 ### Reading in the Data
 
@@ -16,4 +16,56 @@ The data is originally in csv fomat and compressed with the bz2 algorithm. Howev
 sdata <- read.csv("repdata-data-StormData.csv.bz2", header = TRUE)
 ```
 
-The result is a data set of `r dim(sdata[2])` variables and `r dim(sdata[1])` observations.
+The result is a data set of `r dim(sdata)[2]` variables and `r dim(sdata)[1]` observations.
+
+### Data Processing
+
+In the first section of our analysis, we are going to be looking at events which are harmful to human health. We assume that 'harmful to human health' means there must be at least one injury or death related to the observation. We will create a data set that only includes observations with at least one death or injury and sort them based on # of deaths and injuries.
+
+```{r Drop All Non Human Harmful Events, cache=TRUE}
+mdata <- sdata[sdata$INJURIES > 0 | sdata$FATALITIES > 0, ]
+library(plyr)
+mdata <- arrange(mdata, FATALITIES, INJURIES, decreasing = TRUE)
+```
+
+One of the columns we are interested in is the type of event (variable EVTYPE). A quick look at this variable using str shows that this is a factor variable with 985 levels. 
+
+```{r Initial Look At Data}
+str(mdata$EVTYPE)
+```
+
+However, now that we have removed observations with no injuries or fatalities, we can use the aggregate function to see how many event types are still left in our data set.
+
+```{r Aggregate Types}
+sum_mdata <- aggregate(cbind(FATALITIES, INJURIES) ~ EVTYPE, data = mdata, sum)
+```
+
+With this new data set, there are only `r dim(sum_mdata)[1]` events in our data set.
+
+We can also add a new column that contains the total number of fatalities + injuries for each event type. To make the data easier to read, we will sorts the data in decreasing order on this new column.
+
+```{r Fatalities + Injuries}
+library(plyr)
+sum_mdata$Total <- sum_mdata$INJURIES + sum_mdata$FATALITIES
+sum_mdata <- arrange(sum_mdata, Total, decreasing = TRUE)
+```
+
+Looking at the first 10 columns of the data set, we can see that there is a clear winner in all 3 columns: tornados.
+
+```{r Tornado}
+head(sum_mdata, 10)
+```
+
+It should be noted that while some event types should be combined for a more detailed analysis (for example: 'TSTM WIND' and 'THUNDERSTORM WIND') even adding these two columns together will only account to 10% of the total injuries and fatalities cause by tornados. Therefore, combining events was left out of this portion of the analysis as it was deemed unnecessary to answer the question.
+
+
+### Remove this later if not needed
+However, not all of these events are unique. Some labels have the same intent, but slightly different spelling, abbreviations, wording, or captalization. For example, searching the levels of EVTYPE for the words 'blowing snow' while ignoring case turns up 2 results, both of which are actually the same event type.
+
+```{r Urban Search}
+grep("blowing snow", levels(sum_mdata$EVTYPE), ignore.case=TRUE, value=TRUE)
+```
+
+Some of these categories need to be combined before continuing analysis. This can be accomplished by grouping events into a smaller number of categories by using the Storm Data Event Table in the National Weather Service [Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf). There are 48 storm events in this table, as opposed to the 985 unique event labels contained in the raw data set.
+
+We add a new Category column onto our data set and assign 
