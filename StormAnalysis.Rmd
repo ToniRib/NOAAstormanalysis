@@ -1,0 +1,19 @@
+#Hazardous Weather Events in the United States Between 1950 and 2011
+
+## Overview
+
+In this report we aim to describe ...
+
+## Loading and Processing Raw Data
+
+The raw data for this research was obtained from [this link](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2) the Coursera Reproducible Research course website for Peer Assessment 2. However, the data originally came from the United States National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
+
+### Reading in the Data
+
+The data is originally in csv fomat and compressed with the bz2 algorithm. However, the read.csv function can read in this type of data without decompressing it first.
+
+```{r Read Compressed Data, cache=TRUE}
+sdata <- read.csv("repdata-data-StormData.csv.bz2", header = TRUE)
+```
+
+The result is a data set of `r dim(sdata[2])` variables and `r dim(sdata[1])` observations.
