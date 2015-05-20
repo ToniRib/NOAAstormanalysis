@@ -1,5 +1,7 @@
 # Human and Economic Consequences of Hazardous Weather Events in the United States Between 1950 and 2011
 
+*Author: Toni Rib*
+
 ## Synopsis
 
 In this report we aim to describe ...
@@ -52,6 +54,8 @@ mdataAggregates$TOTALHARM <- mdataAggregates$INJURIES + mdataAggregates$FATALITI
 mdataAggregates <- arrange(mdataAggregates, TOTALHARM, decreasing = TRUE)
 ```
 
+We will look at this data set further in the Results section.
+
 ### Data Processing for Economic Consequences
 
 For this section, we are interested in the economic consequences of storms. We will assume that 'economic consequences' means total cost of property damage plus crop damage. These are columns 'PROPDMG' and 'CROPDMG' in the original, raw data set (which we called 'sdata') with the associated columns 'PROPDMGEXP' and 'CROPDMGEXP' which give a one letter symbol signifying the units of the first two columns.
@@ -81,6 +85,7 @@ We do this by adding two additional columns, 'PROPMAG' and 'CROPMAG' which will 
 After the new columns are added, we can calculate the actual values of the damage by multiplying the columns together.
 
 ```{r Convert to Magnitudes, cache = TRUE}
+## Set all initial multipliers to 0
 econSimple$PROPMAG <- 0
 econSimple$CROPMAG <- 0
 
@@ -102,13 +107,15 @@ econSimple$CROPDMGACT <- econSimple$CROPDMG * econSimple$CROPMAG
 
 ```
 
-Now that we have converted the columns to actual dollars, we can use the aggregate function to calculate the total damage for both property and crops for each storm event type. We also add a column for the total damage cost which is equal to the property damage cost plus the crop damage cost. For easier viewing, we sort this new 'TOTALDAMAGE' column with the highest values at the top.
+Now that we have converted the columns to actual dollars and set the data we are not interested in to zero, we can use the aggregate function to calculate the total damage for both property and crops for each storm event type. We also add a column for the total damage cost which is equal to the property damage cost plus the crop damage cost. For easier viewing, we sort this new 'TOTALDAMAGE' column with the highest values at the top.
 
 ```{r Aggregate Types - Economic}
 EconAggregates <- aggregate(cbind(PROPDMGACT, CROPDMGACT) ~ EVTYPE, data = econSimple, sum)
 EconAggregates$TOTALDAMAGE <- EconAggregates$PROPDMGACT + EconAggregates$CROPDMGACT
 EconAggregates <- arrange(EconAggregates, TOTALDAMAGE, decreasing = TRUE)
 ```
+
+We will look at this data set further in the results section.
 
 ## Results
 
@@ -120,32 +127,50 @@ Now that we have two tidy data sets, we analyze them to answer the following two
 
 ### Results for Population Health
 
-Looking at the first 10 columns of the data set, we can see that there is a clear winner in all 3 columns: tornados.
+Looking at the first 10 rows of the 'mdataAggregates' data set, we can see there is a clear winner in all 3 columns: tornados.
 
-```{r Tornado}
+```{r Tornado Header}
 head(mdataAggregates, 10)
 ```
 
-It should be noted that while some event types should be combined for a more detailed analysis (for example: 'TSTM WIND' and 'THUNDERSTORM WIND') even adding these two columns together will only account to 10% of the total injuries and fatalities cause by tornados. In fact, tornados count for approximately 62% of ALL fatalities & injuries in the data set.
+It should be noted that while some event types could be combined for a more detailed analysis (for example: 'TSTM WIND' and 'THUNDERSTORM WIND'), even adding these two columns together will only account to 10% of the total injuries and fatalities cause by tornados. In fact, tornados count for approximately 62% of ALL fatalities & injuries in the data set.
 
 ```{r Tornado Percentage}
-(mdataAggregates[mdataAggregates$EVTYPE == "TORNADO", 4] / (sum(mdataAggregates$Total))) * 100
+(mdataAggregates[mdataAggregates$EVTYPE == "TORNADO", 4] / (sum(mdataAggregates$TOTALHARM))) * 100
 ```
 
-Therefore, combining events was left out of this portion of the analysis as it was deemed unnecessary to answer the question.
+Therefore, combining even some of the top ranking events does not remove the TORNADO category from the number one spot.
 
-TONI IT SAYS 'TYPES' OF EVENTS SO YOU NEED MORE THAN ONE!!! INCLUDE A NEW CHART HERE!!!!
+However, we would also like to look at the top categories below tornados, so we will combine a few of the top categories to get a clear picture of which storm event catgories cause the most damage to humans. Ignoring the TORNADO outlier in the first column, the total fatalities and injuries in columns 2-15 account for almost 80% of the total fatalities and injuries in the data set (again, minus TORNADOS) so we will focus on those columns.
+
+```{r Row Percentage}
+head(mdataAggregates, 15)
+(sum(mdataAggregates$TOTALHARM[2:15]) / sum(mdataAggregates$TOTALHARM[2:220])) * 100
+```
+
+In the first 15 columns, we can combine 'TSTM WIND' with 'THUNDERSTORM WIND'; 'EXCESSIVE HEAT' with 'HEAT'; and 'WINTER STORM' with 'HEAVY SNOW.' We can then re-aggregate and sort the data.
+
+```{r Combine for Analysis}
+h <- mdataAggregates[1:15, ]
+h$EVTYPE[h$EVTYPE == "TSTM WIND"] <- "THUNDERSTORM WIND"
+h$EVTYPE[h$EVTYPE == "HEAT"] <- "EXCESSIVE HEAT"
+h$EVTYPE[h$EVTYPE == "HEAVY SNOW"] <- "WINTER STORM"
+hAgg <- aggregate(cbind(FATALITIES, INJURIES, TOTALHARM) ~ EVTYPE, data = h, sum)
+hAgg <- arrange(hAgg, TOTALHARM, decreasing = TRUE)
+print(hAgg)
+```
+
+This data is better viewed in a barplot showing the top categories.
+
+```{r Create Barplot}
+par(las=2, mar = c(11,4,2,2))
+with(data = hAgg, barplot(TOTALHARM, names.arg = hAgg$EVTYPE[1:12]))
+```
 
 ### Results for Economic Consequences
 
+Looking at the first 10 rows of the 'EconAggregates' data set, we can see ...
 
-### Remove this later if not needed
-However, not all of these events are unique. Some labels have the same intent, but slightly different spelling, abbreviations, wording, or captalization. For example, searching the levels of EVTYPE for the words 'blowing snow' while ignoring case turns up 2 results, both of which are actually the same event type.
-
-```{r Urban Search}
-grep("blowing snow", levels(mdataAggregates$EVTYPE), ignore.case=TRUE, value=TRUE)
+```{r Econ Header}
+head(EconAggregates, 20)
 ```
-
-Some of these categories need to be combined before continuing analysis. This can be accomplished by grouping events into a smaller number of categories by using the Storm Data Event Table in the National Weather Service [Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf). There are 48 storm events in this table, as opposed to the 985 unique event labels contained in the raw data set.
-
-We add a new Category column onto our data set and assign 
