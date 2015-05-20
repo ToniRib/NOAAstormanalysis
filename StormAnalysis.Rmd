@@ -114,6 +114,7 @@ Now that we have converted the columns to actual dollars and set the data we are
 EconAggregates <- aggregate(cbind(PROPDMGACT, CROPDMGACT) ~ EVTYPE, data = econSimple, sum)
 EconAggregates$TOTALDAMAGE <- EconAggregates$PROPDMGACT + EconAggregates$CROPDMGACT
 EconAggregates <- arrange(EconAggregates, TOTALDAMAGE, decreasing = TRUE)
+head(EconAggregates, 10)
 ```
 
 We will look at this data set further in the results section.
@@ -168,15 +169,26 @@ par(las=2, mar = c(11,5,2,2), cex.axis=0.75)
 with(data = hAgg, barplot(TOTALHARM, names.arg = hAgg$EVTYPE[1:12],
                           main = "Total Fatalities & Injuries by Storm Event", 
                           ylab = "# of Fatalities + Injuries",
-                          col = "blue"))
+                          col = "red"))
 ```
 
 From this barplot, we can see that the storm event types that cause the next highest number of fatalities and injuries are excessive heat, thunderstorm wind, floods, and lightning. After lightning, the numbers drop off significantly.
 
 ### Results for Economic Consequences
 
-Looking at the first 10 rows of the 'EconAggregates' data set, we can see ...
+To draw some conclusions about the economic consequences of storms, we will create a stacked barplot that allows us to see not only the total aggregate damage, but also the damage costs broken out by property and crops. We will only include the first 20 columns. To do this, we also need to drop the TOTALDAMAGE column.
 
-```{r Econ Header}
-head(EconAggregates, 20)
+```{r Econ Stacked Bar, fig.height = 9}
+ecoSmall <- EconAggregates[1:20, 1:3]
+ecoSmall$EVTYPE <- reorder(ecoSmall$EVTYPE, rowSums(ecoSmall[-1]))
+library(reshape2)
+library(ggplot2)
+eco.m <- melt(ecoSmall, id.var = "EVTYPE")
+eco.m <- arrange(eco.m, variable, value, decreasing = TRUE)
+ggplot(eco.m, aes(x=EVTYPE, y = value, fill = variable)) + geom_bar(stat= 'identity') + 
+      theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+      labs(title = "Property and Crop Damage by Storm Event", 
+           x = "Storm Event Type", y ="Cost of Damage in US Dollars")
 ```
+
+From this plot we can see that floods cause the most property damage, followed by hurricane/typhoon and tornados. However, the majority of crop damage is caused from drought, which is interested since it is the opposite of flooding. Therefore, while too much rain is bad for property, too little rain is bad for crops.
