@@ -4,15 +4,15 @@
 
 ## Synopsis
 
-In this report we aim to describe ...
+In this report I aim to describe both the human and economic consequences of various storm events in the United States between the years 1950 and 2011. Data was obtained from the National Oceanic and Atmospheric Administration's (NOAA) storm database for the analysis. From the data, I concluded that while Tornados are the overwhelming cause of human death and injury, floods andd hurricanes/typhoons tend to cause the most economic damage as measured in property and crop damage costs.
 
 ## Data Processing
 
-The raw data for this research was obtained from [this link](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2) from the Coursera Reproducible Research course website for Peer Assessment 2. However, the data originally came from the United States National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
+The raw data for this research was obtained from [this link](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2) from the Coursera Reproducible Research course website for Peer Assessment 2 on Monday, May 18. However, the data originally came from the United States National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur as well as estimates of any fatalities, injuries, and property/crop damage.
 
 ### Reading in the Raw Data
 
-The data is originally in comma-separated values (csv) fomat and compressed with the bz2 algorithm. The 'read.csv' function can read in this type of data without decompressing it first, so we will use that to add the raw data to an R data frame called 'sdata.'
+The data is originally in comma-separated values (csv) format and compressed with the bz2 algorithm. The 'read.csv' function can read in this type of data without decompressing it first, so I will use that to add the raw data to an R data frame called 'sdata.'
 
 ```{r Read Compressed Data, cache=TRUE}
 sdata <- read.csv("repdata-data-StormData.csv.bz2", header = TRUE)
@@ -20,7 +20,7 @@ sdata <- read.csv("repdata-data-StormData.csv.bz2", header = TRUE)
 
 The result is a data set of `r dim(sdata)[2]` variables and `r dim(sdata)[1]` observations.
 
-The next two sections will create the tidy data sets that will be used for our analysis.
+The next two sections will create the tidy data sets that will be used for the analysis. One data set will be used for analysis of population health while the second data set will be used for analysis of economic consequences.
 
 ### Data Processing for Population Health
 
@@ -28,6 +28,7 @@ In the first section of our analysis, we are going to be looking at events which
 
 ```{r Drop All Non-Human Harmful Events, cache=TRUE}
 mdata <- sdata[sdata$INJURIES > 0 | sdata$FATALITIES > 0, ]
+## Sort data in decreasing order based on fatalities then injuries
 library(plyr)
 mdata <- arrange(mdata, FATALITIES, INJURIES, decreasing = TRUE)
 ```
@@ -163,9 +164,14 @@ print(hAgg)
 This data is better viewed in a barplot showing the top categories.
 
 ```{r Create Barplot}
-par(las=2, mar = c(11,4,2,2))
-with(data = hAgg, barplot(TOTALHARM, names.arg = hAgg$EVTYPE[1:12]))
+par(las=2, mar = c(11,5,2,2), cex.axis=0.75)
+with(data = hAgg, barplot(TOTALHARM, names.arg = hAgg$EVTYPE[1:12],
+                          main = "Total Fatalities & Injuries by Storm Event", 
+                          ylab = "# of Fatalities + Injuries",
+                          col = "blue"))
 ```
+
+From this barplot, we can see that the storm event types that cause the next highest number of fatalities and injuries are excessive heat, thunderstorm wind, floods, and lightning. After lightning, the numbers drop off significantly.
 
 ### Results for Economic Consequences
 
