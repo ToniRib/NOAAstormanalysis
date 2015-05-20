@@ -61,68 +61,48 @@ img {
 
 
 
-<div id="hazardous-weather-events-in-the-united-states-between-1950-and-2011" class="section level1">
-<h1>Hazardous Weather Events in the United States Between 1950 and 2011</h1>
+<div id="human-and-economic-consequences-of-hazardous-weather-events-in-the-united-states-between-1950-and-2011" class="section level1">
+<h1>Human and Economic Consequences of Hazardous Weather Events in the United States Between 1950 and 2011</h1>
 <div id="synopsis" class="section level2">
 <h2>Synopsis</h2>
 <p>In this report we aim to describe …</p>
 </div>
-<div id="loading-and-processing-raw-data" class="section level2">
-<h2>Loading and Processing Raw Data</h2>
+<div id="data-processing" class="section level2">
+<h2>Data Processing</h2>
 <p>The raw data for this research was obtained from <a href="https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2">this link</a> from the Coursera Reproducible Research course website for Peer Assessment 2. However, the data originally came from the United States National Oceanic and Atmospheric Administration’s (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.</p>
-<div id="reading-in-the-data" class="section level3">
-<h3>Reading in the Data</h3>
-<p>The data is originally in csv fomat and compressed with the bz2 algorithm. However, the read.csv function can read in this type of data without decompressing it first.</p>
+<div id="reading-in-the-raw-data" class="section level3">
+<h3>Reading in the Raw Data</h3>
+<p>The data is originally in comma-separated values (csv) fomat and compressed with the bz2 algorithm. The ‘read.csv’ function can read in this type of data without decompressing it first, so we will use that to add the raw data to an R data frame called ‘sdata.’</p>
 <pre class="r"><code>sdata &lt;- read.csv(&quot;repdata-data-StormData.csv.bz2&quot;, header = TRUE)</code></pre>
 <p>The result is a data set of 37 variables and 902297 observations.</p>
+<p>The next two sections will create the tidy data sets that will be used for our analysis.</p>
 </div>
 <div id="data-processing-for-population-health" class="section level3">
 <h3>Data Processing for Population Health</h3>
-<p>In the first section of our analysis, we are going to be looking at events which are harmful to human health. We assume that ‘harmful to human health’ means there must be at least one injury or death related to the observation. We will create a data set that only includes observations with at least one death or injury and sort them based on # of deaths and injuries.</p>
+<p>In the first section of our analysis, we are going to be looking at events which are harmful to human health. We assume that ‘harmful to human health’ means there must be at least one injury or fatality related to the observation. We will create a data set that only includes observations with at least one fatality or injury and sort them based on the number of fatalities and injuries.</p>
 <pre class="r"><code>mdata &lt;- sdata[sdata$INJURIES &gt; 0 | sdata$FATALITIES &gt; 0, ]
 library(plyr)
 mdata &lt;- arrange(mdata, FATALITIES, INJURIES, decreasing = TRUE)</code></pre>
-<p>One of the columns we are interested in is the type of event (variable EVTYPE). A quick look at this variable using str shows that this is a factor variable with 985 levels.</p>
+<p>One of the columns we are interested in is the type of event (variable EVTYPE). A quick look at this variable using ‘str’ shows that this is a factor variable with 985 levels.</p>
 <pre class="r"><code>str(mdata$EVTYPE)</code></pre>
 <pre><code>##  Factor w/ 985 levels &quot;   HIGH SURF ADVISORY&quot;,..: 275 834 834 834 130 834 834 130 130 834 ...</code></pre>
 <p>However, now that we have removed observations with no injuries or fatalities, we can use the aggregate function to see how many event types are still left in our data set.</p>
-<pre class="r"><code>sum_mdata &lt;- aggregate(cbind(FATALITIES, INJURIES) ~ EVTYPE, data = mdata, sum)</code></pre>
+<pre class="r"><code>mdataAggregates &lt;- aggregate(cbind(FATALITIES, INJURIES) ~ EVTYPE, data = mdata, sum)</code></pre>
 <p>With this new data set, there are only 220 event types in our data set.</p>
-<p>We can also add a new column that contains the total number of fatalities + injuries for each event type. To make the data easier to read, we will sorts the data in decreasing order on this new column.</p>
+<p>We can also add a new column that contains the total number of fatalities plus injuries for each storm event type. To make the data easier to read, we will sort the data in decreasing order on this new column.</p>
 <pre class="r"><code>library(plyr)
-sum_mdata$Total &lt;- sum_mdata$INJURIES + sum_mdata$FATALITIES
-sum_mdata &lt;- arrange(sum_mdata, Total, decreasing = TRUE)</code></pre>
+mdataAggregates$TOTALHARM &lt;- mdataAggregates$INJURIES + mdataAggregates$FATALITIES
+mdataAggregates &lt;- arrange(mdataAggregates, TOTALHARM, decreasing = TRUE)</code></pre>
 </div>
-</div>
-<div id="results-for-population-health" class="section level2">
-<h2>Results for Population Health</h2>
-<p>Looking at the first 10 columns of the data set, we can see that there is a clear winner in all 3 columns: tornados.</p>
-<pre class="r"><code>head(sum_mdata, 10)</code></pre>
-<pre><code>##               EVTYPE FATALITIES INJURIES Total
-## 1            TORNADO       5633    91346 96979
-## 2     EXCESSIVE HEAT       1903     6525  8428
-## 3          TSTM WIND        504     6957  7461
-## 4              FLOOD        470     6789  7259
-## 5          LIGHTNING        816     5230  6046
-## 6               HEAT        937     2100  3037
-## 7        FLASH FLOOD        978     1777  2755
-## 8          ICE STORM         89     1975  2064
-## 9  THUNDERSTORM WIND        133     1488  1621
-## 10      WINTER STORM        206     1321  1527</code></pre>
-<p>It should be noted that while some event types should be combined for a more detailed analysis (for example: ‘TSTM WIND’ and ‘THUNDERSTORM WIND’) even adding these two columns together will only account to 10% of the total injuries and fatalities cause by tornados. In fact, tornados count for approximately 62% of ALL fatalities &amp; injuries in the data set.</p>
-<pre class="r"><code>(sum_mdata[sum_mdata$EVTYPE == &quot;TORNADO&quot;, 4] / (sum(sum_mdata$Total))) * 100</code></pre>
-<pre><code>## [1] 62.29661</code></pre>
-<p>Therefore, combining events was left out of this portion of the analysis as it was deemed unnecessary to answer the question.</p>
-<p>TONI IT SAYS ‘TYPES’ OF EVENTS SO YOU NEED MORE THAN ONE!!! INCLUDE A NEW CHART HERE!!!!</p>
 <div id="data-processing-for-economic-consequences" class="section level3">
 <h3>Data Processing for Economic Consequences</h3>
-<p>For this section, we are interested in the economic consequences of storms. We will assume that ‘economic consequences’ means total cost of property damage plus crop damage. These are columns ‘PROPDMG’ and ‘CROPDMG’ in the original dataset (which we called sdata) with the associated columns ‘PROPDMGEXP’ and ‘CROPDMGEXP’ which give a one letter symbol signifying the units of the first two columns.</p>
-<p>Similar to our previous data processing, we will first remove all observations where no property damage or crop damage was present, as these are not relevant to our analysis.</p>
+<p>For this section, we are interested in the economic consequences of storms. We will assume that ‘economic consequences’ means total cost of property damage plus crop damage. These are columns ‘PROPDMG’ and ‘CROPDMG’ in the original, raw data set (which we called ‘sdata’) with the associated columns ‘PROPDMGEXP’ and ‘CROPDMGEXP’ which give a one letter symbol signifying the units of the first two columns.</p>
+<p>Similar to our previous data processing, we will first remove all observations where no property damage or crop damage was present, as these are not relevant to our analysis. We will also shrink down our data set to only include the columns we are interested in.</p>
 <pre class="r"><code>econdata &lt;- sdata[sdata$PROPDMG &gt; 0 | sdata$CROPDMG &gt; 0, ]
 econSimple &lt;- econdata[ ,c(8, 25, 26, 27, 28)]
 library(plyr)
 econSimple &lt;- arrange(econSimple, PROPDMG, CROPDMG, decreasing = TRUE)</code></pre>
-<p>Before we can aggregate the data for each storm event type, we need to first take into account the fact that the numbers in the PROPDMG and CROPDMG columns are not all in the same units. We will use the symbols in the units columns to convert the numbers in the damage columns. First we will take a look at what symbols we have for each column and how many of our observations fall into each category.</p>
+<p>Before we can aggregate the data for each storm event type, we need to first take into account the fact that the numbers in the ‘PROPDMG’ and ‘CROPDMG’ columns are not all in the same units. We will need to use the ‘PROPDMPEXP’ and ‘CROPDMGEXP’ columns to convert the numbers into actual dollars, all in the same units of $1. First we will take a look at what symbols we have for each column and how many of our observations fall into each category.</p>
 <pre class="r"><code>## Property Damage Units
 table(econSimple$PROPDMGEXP)</code></pre>
 <pre><code>## 
@@ -135,7 +115,9 @@ table(econSimple$CROPDMGEXP)</code></pre>
 <pre><code>## 
 ##             ?      0      2      B      k      K      m      M 
 ## 145037      6     17      0      7     21  97960      1   1982</code></pre>
-<p>There are some unusual units in the data, such as ‘?’ or ‘+’ which do not follow the rules outlined in section 2.7 of the National Weather Service <a href="https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf">Storm Data Documentation</a> which only allows <blank>, K (thousands), M (millions), and B (billions). However, from the tables above we can see that these account for very little of the observations, so we will drop them from the data. Additionally, we will convert the values in the PROPDMG and CROPDMG columns to their actual values (in units of $1) by multiplying by the appropriate magnitude from the PROPDMGEXP and CROPDMGEXP columns.</p>
+<p>There are some unusual units in the data, such as ‘?’ or ‘+’ which do not follow the rules outlined in section 2.7 of the National Weather Service <a href="https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf">Storm Data Documentation</a> which only allows <blank>, K (thousands), M (millions), and B (billions). However, from the tables above we can see that these account for very little of the observations, so we will drop them from the data. Additionally, we will convert the values in the ‘PROPDMG’ and ‘CROPDMG’ columns to their actual values (in units of $1) by multiplying by the appropriate magnitude from the ‘PROPDMGEXP’ and ‘CROPDMGEXP’ columns.</p>
+<p>We do this by adding two additional columns, ‘PROPMAG’ and ‘CROPMAG’ which will be equal to either 0, 1, 1000, 100000, or 1000000000 depending on the values in the ‘PROPDMGEXP’ and ‘CROPDMGEXP’ columns. All rows will initially be set to a value of 0, then only those rows we wish to keep based on the above criteria will be set to the appropriate non-zero value.</p>
+<p>After the new columns are added, we can calculate the actual values of the damage by multiplying the columns together.</p>
 <pre class="r"><code>econSimple$PROPMAG &lt;- 0
 econSimple$CROPMAG &lt;- 0
 
@@ -154,17 +136,47 @@ econSimple$CROPMAG[econSimple$CROPDMGEXP == &quot;&quot;] &lt;- 1
 ## Calculate actual values
 econSimple$PROPDMGACT &lt;- econSimple$PROPDMG * econSimple$PROPMAG
 econSimple$CROPDMGACT &lt;- econSimple$CROPDMG * econSimple$CROPMAG</code></pre>
-<p>Now that we have converted the columns to actual dollars, we can use the aggregate function to calculate the total damage for both property and crops for each storm event type.</p>
+<p>Now that we have converted the columns to actual dollars, we can use the aggregate function to calculate the total damage for both property and crops for each storm event type. We also add a column for the total damage cost which is equal to the property damage cost plus the crop damage cost. For easier viewing, we sort this new ‘TOTALDAMAGE’ column with the highest values at the top.</p>
 <pre class="r"><code>EconAggregates &lt;- aggregate(cbind(PROPDMGACT, CROPDMGACT) ~ EVTYPE, data = econSimple, sum)
-
 EconAggregates$TOTALDAMAGE &lt;- EconAggregates$PROPDMGACT + EconAggregates$CROPDMGACT
-
 EconAggregates &lt;- arrange(EconAggregates, TOTALDAMAGE, decreasing = TRUE)</code></pre>
+</div>
+</div>
+<div id="results" class="section level2">
+<h2>Results</h2>
+<p>Now that we have two tidy data sets, we analyze them to answer the following two questions:</p>
+<ol style="list-style-type: decimal">
+<li><p>Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?</p></li>
+<li><p>Across the United States, which types of events have the greatest economic consequences?</p></li>
+</ol>
+<div id="results-for-population-health" class="section level3">
+<h3>Results for Population Health</h3>
+<p>Looking at the first 10 columns of the data set, we can see that there is a clear winner in all 3 columns: tornados.</p>
+<pre class="r"><code>head(mdataAggregates, 10)</code></pre>
+<pre><code>##               EVTYPE FATALITIES INJURIES TOTALHARM
+## 1            TORNADO       5633    91346     96979
+## 2     EXCESSIVE HEAT       1903     6525      8428
+## 3          TSTM WIND        504     6957      7461
+## 4              FLOOD        470     6789      7259
+## 5          LIGHTNING        816     5230      6046
+## 6               HEAT        937     2100      3037
+## 7        FLASH FLOOD        978     1777      2755
+## 8          ICE STORM         89     1975      2064
+## 9  THUNDERSTORM WIND        133     1488      1621
+## 10      WINTER STORM        206     1321      1527</code></pre>
+<p>It should be noted that while some event types should be combined for a more detailed analysis (for example: ‘TSTM WIND’ and ‘THUNDERSTORM WIND’) even adding these two columns together will only account to 10% of the total injuries and fatalities cause by tornados. In fact, tornados count for approximately 62% of ALL fatalities &amp; injuries in the data set.</p>
+<pre class="r"><code>(mdataAggregates[mdataAggregates$EVTYPE == &quot;TORNADO&quot;, 4] / (sum(mdataAggregates$Total))) * 100</code></pre>
+<pre><code>## [1] Inf</code></pre>
+<p>Therefore, combining events was left out of this portion of the analysis as it was deemed unnecessary to answer the question.</p>
+<p>TONI IT SAYS ‘TYPES’ OF EVENTS SO YOU NEED MORE THAN ONE!!! INCLUDE A NEW CHART HERE!!!!</p>
+</div>
+<div id="results-for-economic-consequences" class="section level3">
+<h3>Results for Economic Consequences</h3>
 </div>
 <div id="remove-this-later-if-not-needed" class="section level3">
 <h3>Remove this later if not needed</h3>
 <p>However, not all of these events are unique. Some labels have the same intent, but slightly different spelling, abbreviations, wording, or captalization. For example, searching the levels of EVTYPE for the words ‘blowing snow’ while ignoring case turns up 2 results, both of which are actually the same event type.</p>
-<pre class="r"><code>grep(&quot;blowing snow&quot;, levels(sum_mdata$EVTYPE), ignore.case=TRUE, value=TRUE)</code></pre>
+<pre class="r"><code>grep(&quot;blowing snow&quot;, levels(mdataAggregates$EVTYPE), ignore.case=TRUE, value=TRUE)</code></pre>
 <pre><code>## [1] &quot;blowing snow&quot;                   &quot;Blowing Snow&quot;                  
 ## [3] &quot;BLOWING SNOW&quot;                   &quot;BLOWING SNOW- EXTREME WIND CHI&quot;
 ## [5] &quot;BLOWING SNOW &amp; EXTREME WIND CH&quot; &quot;BLOWING SNOW/EXTREME WIND CHIL&quot;

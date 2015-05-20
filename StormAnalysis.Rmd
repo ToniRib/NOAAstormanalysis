@@ -1,16 +1,16 @@
-#Hazardous Weather Events in the United States Between 1950 and 2011
+# Human and Economic Consequences of Hazardous Weather Events in the United States Between 1950 and 2011
 
 ## Synopsis
 
 In this report we aim to describe ...
 
-## Loading and Processing Raw Data
+## Data Processing
 
 The raw data for this research was obtained from [this link](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2) from the Coursera Reproducible Research course website for Peer Assessment 2. However, the data originally came from the United States National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
 
-### Reading in the Data
+### Reading in the Raw Data
 
-The data is originally in csv fomat and compressed with the bz2 algorithm. However, the read.csv function can read in this type of data without decompressing it first.
+The data is originally in comma-separated values (csv) fomat and compressed with the bz2 algorithm. The 'read.csv' function can read in this type of data without decompressing it first, so we will use that to add the raw data to an R data frame called 'sdata.'
 
 ```{r Read Compressed Data, cache=TRUE}
 sdata <- read.csv("repdata-data-StormData.csv.bz2", header = TRUE)
@@ -18,17 +18,19 @@ sdata <- read.csv("repdata-data-StormData.csv.bz2", header = TRUE)
 
 The result is a data set of `r dim(sdata)[2]` variables and `r dim(sdata)[1]` observations.
 
+The next two sections will create the tidy data sets that will be used for our analysis.
+
 ### Data Processing for Population Health
 
-In the first section of our analysis, we are going to be looking at events which are harmful to human health. We assume that 'harmful to human health' means there must be at least one injury or death related to the observation. We will create a data set that only includes observations with at least one death or injury and sort them based on # of deaths and injuries.
+In the first section of our analysis, we are going to be looking at events which are harmful to human health. We assume that 'harmful to human health' means there must be at least one injury or fatality related to the observation. We will create a data set that only includes observations with at least one fatality or injury and sort them based on the number of fatalities and injuries.
 
-```{r Drop All Non Human Harmful Events, cache=TRUE}
+```{r Drop All Non-Human Harmful Events, cache=TRUE}
 mdata <- sdata[sdata$INJURIES > 0 | sdata$FATALITIES > 0, ]
 library(plyr)
 mdata <- arrange(mdata, FATALITIES, INJURIES, decreasing = TRUE)
 ```
 
-One of the columns we are interested in is the type of event (variable EVTYPE). A quick look at this variable using str shows that this is a factor variable with 985 levels. 
+One of the columns we are interested in is the type of event (variable EVTYPE). A quick look at this variable using 'str' shows that this is a factor variable with 985 levels. 
 
 ```{r Initial Look At EVTYPE}
 str(mdata$EVTYPE)
@@ -37,42 +39,24 @@ str(mdata$EVTYPE)
 However, now that we have removed observations with no injuries or fatalities, we can use the aggregate function to see how many event types are still left in our data set.
 
 ```{r Aggregate Types}
-sum_mdata <- aggregate(cbind(FATALITIES, INJURIES) ~ EVTYPE, data = mdata, sum)
+mdataAggregates <- aggregate(cbind(FATALITIES, INJURIES) ~ EVTYPE, data = mdata, sum)
 ```
 
-With this new data set, there are only `r dim(sum_mdata)[1]` event types in our data set.
+With this new data set, there are only `r dim(mdataAggregates)[1]` event types in our data set.
 
-We can also add a new column that contains the total number of fatalities + injuries for each event type. To make the data easier to read, we will sorts the data in decreasing order on this new column.
+We can also add a new column that contains the total number of fatalities plus injuries for each storm event type. To make the data easier to read, we will sort the data in decreasing order on this new column.
 
 ```{r Fatalities + Injuries}
 library(plyr)
-sum_mdata$Total <- sum_mdata$INJURIES + sum_mdata$FATALITIES
-sum_mdata <- arrange(sum_mdata, Total, decreasing = TRUE)
+mdataAggregates$TOTALHARM <- mdataAggregates$INJURIES + mdataAggregates$FATALITIES
+mdataAggregates <- arrange(mdataAggregates, TOTALHARM, decreasing = TRUE)
 ```
-
-## Results for Population Health
-
-Looking at the first 10 columns of the data set, we can see that there is a clear winner in all 3 columns: tornados.
-
-```{r Tornado}
-head(sum_mdata, 10)
-```
-
-It should be noted that while some event types should be combined for a more detailed analysis (for example: 'TSTM WIND' and 'THUNDERSTORM WIND') even adding these two columns together will only account to 10% of the total injuries and fatalities cause by tornados. In fact, tornados count for approximately 62% of ALL fatalities & injuries in the data set.
-
-```{r Tornado Percentage}
-(sum_mdata[sum_mdata$EVTYPE == "TORNADO", 4] / (sum(sum_mdata$Total))) * 100
-```
-
-Therefore, combining events was left out of this portion of the analysis as it was deemed unnecessary to answer the question.
-
-TONI IT SAYS 'TYPES' OF EVENTS SO YOU NEED MORE THAN ONE!!! INCLUDE A NEW CHART HERE!!!!
 
 ### Data Processing for Economic Consequences
 
-For this section, we are interested in the economic consequences of storms. We will assume that 'economic consequences' means total cost of property damage plus crop damage. These are columns 'PROPDMG' and 'CROPDMG' in the original dataset (which we called sdata) with the associated columns 'PROPDMGEXP' and 'CROPDMGEXP' which give a one letter symbol signifying the units of the first two columns.
+For this section, we are interested in the economic consequences of storms. We will assume that 'economic consequences' means total cost of property damage plus crop damage. These are columns 'PROPDMG' and 'CROPDMG' in the original, raw data set (which we called 'sdata') with the associated columns 'PROPDMGEXP' and 'CROPDMGEXP' which give a one letter symbol signifying the units of the first two columns.
 
-Similar to our previous data processing, we will first remove all observations where no property damage or crop damage was present, as these are not relevant to our analysis.
+Similar to our previous data processing, we will first remove all observations where no property damage or crop damage was present, as these are not relevant to our analysis. We will also shrink down our data set to only include the columns we are interested in.
 
 ```{r Drop All Non Economic Damage Events, cache=TRUE}
 econdata <- sdata[sdata$PROPDMG > 0 | sdata$CROPDMG > 0, ]
@@ -81,7 +65,7 @@ library(plyr)
 econSimple <- arrange(econSimple, PROPDMG, CROPDMG, decreasing = TRUE)
 ```
 
-Before we can aggregate the data for each storm event type, we need to first take into account the fact that the numbers in the PROPDMG and CROPDMG columns are not all in the same units. We will use the symbols in the units columns to convert the numbers in the damage columns. First we will take a look at what symbols we have for each column and how many of our observations fall into each category.
+Before we can aggregate the data for each storm event type, we need to first take into account the fact that the numbers in the 'PROPDMG' and 'CROPDMG' columns are not all in the same units. We will need to use the 'PROPDMPEXP' and 'CROPDMGEXP' columns to convert the numbers into actual dollars, all in the same units of $1. First we will take a look at what symbols we have for each column and how many of our observations fall into each category.
 
 ```{r Damage Units}
 ## Property Damage Units
@@ -90,7 +74,11 @@ table(econSimple$PROPDMGEXP)
 table(econSimple$CROPDMGEXP)
 ```
 
-There are some unusual units in the data, such as '?' or '+' which do not follow the rules outlined in section 2.7 of the National Weather Service [Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) which only allows <blank>, K (thousands), M (millions), and B (billions). However, from the tables above we can see that these account for very little of the observations, so we will drop them from the data. Additionally, we will convert the values in the PROPDMG and CROPDMG columns to their actual values (in units of $1) by multiplying by the appropriate magnitude from the PROPDMGEXP and CROPDMGEXP columns. 
+There are some unusual units in the data, such as '?' or '+' which do not follow the rules outlined in section 2.7 of the National Weather Service [Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) which only allows <blank>, K (thousands), M (millions), and B (billions). However, from the tables above we can see that these account for very little of the observations, so we will drop them from the data. Additionally, we will convert the values in the 'PROPDMG' and 'CROPDMG' columns to their actual values (in units of $1) by multiplying by the appropriate magnitude from the 'PROPDMGEXP' and 'CROPDMGEXP' columns. 
+
+We do this by adding two additional columns, 'PROPMAG' and 'CROPMAG' which will be equal to either 0, 1, 1000, 100000, or 1000000000 depending on the values in the 'PROPDMGEXP' and 'CROPDMGEXP' columns. All rows will initially be set to a value of 0, then only those rows we wish to keep based on the above criteria will be set to the appropriate non-zero value.
+
+After the new columns are added, we can calculate the actual values of the damage by multiplying the columns together.
 
 ```{r Convert to Magnitudes, cache = TRUE}
 econSimple$PROPMAG <- 0
@@ -114,21 +102,48 @@ econSimple$CROPDMGACT <- econSimple$CROPDMG * econSimple$CROPMAG
 
 ```
 
-Now that we have converted the columns to actual dollars, we can use the aggregate function to calculate the total damage for both property and crops for each storm event type.
+Now that we have converted the columns to actual dollars, we can use the aggregate function to calculate the total damage for both property and crops for each storm event type. We also add a column for the total damage cost which is equal to the property damage cost plus the crop damage cost. For easier viewing, we sort this new 'TOTALDAMAGE' column with the highest values at the top.
 
 ```{r Aggregate Types - Economic}
 EconAggregates <- aggregate(cbind(PROPDMGACT, CROPDMGACT) ~ EVTYPE, data = econSimple, sum)
-
 EconAggregates$TOTALDAMAGE <- EconAggregates$PROPDMGACT + EconAggregates$CROPDMGACT
-
 EconAggregates <- arrange(EconAggregates, TOTALDAMAGE, decreasing = TRUE)
 ```
+
+## Results
+
+Now that we have two tidy data sets, we analyze them to answer the following two questions:
+
+1. Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
+
+2. Across the United States, which types of events have the greatest economic consequences?
+
+### Results for Population Health
+
+Looking at the first 10 columns of the data set, we can see that there is a clear winner in all 3 columns: tornados.
+
+```{r Tornado}
+head(mdataAggregates, 10)
+```
+
+It should be noted that while some event types should be combined for a more detailed analysis (for example: 'TSTM WIND' and 'THUNDERSTORM WIND') even adding these two columns together will only account to 10% of the total injuries and fatalities cause by tornados. In fact, tornados count for approximately 62% of ALL fatalities & injuries in the data set.
+
+```{r Tornado Percentage}
+(mdataAggregates[mdataAggregates$EVTYPE == "TORNADO", 4] / (sum(mdataAggregates$Total))) * 100
+```
+
+Therefore, combining events was left out of this portion of the analysis as it was deemed unnecessary to answer the question.
+
+TONI IT SAYS 'TYPES' OF EVENTS SO YOU NEED MORE THAN ONE!!! INCLUDE A NEW CHART HERE!!!!
+
+### Results for Economic Consequences
+
 
 ### Remove this later if not needed
 However, not all of these events are unique. Some labels have the same intent, but slightly different spelling, abbreviations, wording, or captalization. For example, searching the levels of EVTYPE for the words 'blowing snow' while ignoring case turns up 2 results, both of which are actually the same event type.
 
 ```{r Urban Search}
-grep("blowing snow", levels(sum_mdata$EVTYPE), ignore.case=TRUE, value=TRUE)
+grep("blowing snow", levels(mdataAggregates$EVTYPE), ignore.case=TRUE, value=TRUE)
 ```
 
 Some of these categories need to be combined before continuing analysis. This can be accomplished by grouping events into a smaller number of categories by using the Storm Data Event Table in the National Weather Service [Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf). There are 48 storm events in this table, as opposed to the 985 unique event labels contained in the raw data set.
