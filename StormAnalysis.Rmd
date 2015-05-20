@@ -66,6 +66,8 @@ It should be noted that while some event types should be combined for a more det
 
 Therefore, combining events was left out of this portion of the analysis as it was deemed unnecessary to answer the question.
 
+TONI IT SAYS 'TYPES' OF EVENTS SO YOU NEED MORE THAN ONE!!! INCLUDE A NEW CHART HERE!!!!
+
 ### Data Processing for Economic Consequences
 
 For this section, we are interested in the economic consequences of storms. We will assume that 'economic consequences' means total cost of property damage plus crop damage. These are columns 'PROPDMG' and 'CROPDMG' in the original dataset (which we called sdata) with the associated columns 'PROPDMGEXP' and 'CROPDMGEXP' which give a one letter symbol signifying the units of the first two columns.
@@ -74,49 +76,52 @@ Similar to our previous data processing, we will first remove all observations w
 
 ```{r Drop All Non Economic Damage Events, cache=TRUE}
 econdata <- sdata[sdata$PROPDMG > 0 | sdata$CROPDMG > 0, ]
+econSimple <- econdata[ ,c(8, 25, 26, 27, 28)]
 library(plyr)
-econdata <- arrange(econdata, PROPDMG, CROPDMG, decreasing = TRUE)
+econSimple <- arrange(econSimple, PROPDMG, CROPDMG, decreasing = TRUE)
 ```
 
 Before we can aggregate the data for each storm event type, we need to first take into account the fact that the numbers in the PROPDMG and CROPDMG columns are not all in the same units. We will use the symbols in the units columns to convert the numbers in the damage columns. First we will take a look at what symbols we have for each column and how many of our observations fall into each category.
 
 ```{r Damage Units}
 ## Property Damage Units
-table(econdata$PROPDMGEXP)
+table(econSimple$PROPDMGEXP)
 ## Crop Damage Units
-table(econdata$CROPDMGEXP)
+table(econSimple$CROPDMGEXP)
 ```
 
-There are some unusual units in the data, such as '?' or '+' which do not follow the rules outlined in section 2.7 of the National Weather Service [Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) which only allows <blank>, K (thousands), M (millions), and B (billions). However, from the tables above we can see that these account for very little of the observations, so we will drop them from the data.
+There are some unusual units in the data, such as '?' or '+' which do not follow the rules outlined in section 2.7 of the National Weather Service [Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) which only allows <blank>, K (thousands), M (millions), and B (billions). However, from the tables above we can see that these account for very little of the observations, so we will drop them from the data. Additionally, we will convert the values in the PROPDMG and CROPDMG columns to their actual values (in units of $1) by multiplying by the appropriate magnitude from the PROPDMGEXP and CROPDMGEXP columns. 
 
-First, we will assume that capitalization does not matter and change all lowercase letters to uppercase.
+```{r Convert to Magnitudes, cache = TRUE}
+econSimple$PROPMAG <- 0
+econSimple$CROPMAG <- 0
 
-```{r Lower to Upper}
-## Property Damage Units
-econdata$PROPDMGEXP[econdata$PROPDMGEXP == "k"] <- "K"
-econdata$PROPDMGEXP[econdata$PROPDMGEXP == "m"] <- "M"
-# Crop Damage Units
-econdata$CROPDMGEXP[econdata$CROPDMGEXP == "k"] <- "K"
-econdata$CROPDMGEXP[econdata$CROPDMGEXP == "m"] <- "M"
+## Set correct multipliers for property damage
+econSimple$PROPMAG[econSimple$PROPDMGEXP == "B"] <- 1000000000
+econSimple$PROPMAG[econSimple$PROPDMGEXP == "M" | econSimple$PROPDMGEXP == "m"] <- 1000000
+econSimple$PROPMAG[econSimple$PROPDMGEXP == "K" | econSimple$PROPDMGEXP == "k"] <- 1000
+econSimple$PROPMAG[econSimple$PROPDMGEXP == ""] <- 1
+
+## Set correct multipliers for property damage
+econSimple$CROPMAG[econSimple$CROPDMGEXP == "B"] <- 1000000000
+econSimple$CROPMAG[econSimple$CROPDMGEXP == "M" | econSimple$CROPDMGEXP == "m"] <- 1000000
+econSimple$CROPMAG[econSimple$CROPDMGEXP == "K" | econSimple$CROPDMGEXP == "k"] <- 1000
+econSimple$CROPMAG[econSimple$CROPDMGEXP == ""] <- 1
+
+## Calculate actual values
+econSimple$PROPDMGACT <- econSimple$PROPDMG * econSimple$PROPMAG
+econSimple$CROPDMGACT <- econSimple$CROPDMG * econSimple$CROPMAG
+
 ```
 
-Then we will drop observations without these units.
-
-```{r Drop Invalid Observations}
-econdata2 <- econdata[econdata$PROPDMGEXP == "" |
-                      econdata$PROPDMGEXP == "K" |
-                      econdata$PROPDMGEXP == "M" |
-                      econdata$PROPDMGEXP == "B" |
-                      econdata$CROPDMGEXP == "" |
-                      econdata$CROPDMGEXP == "K" |
-                      econdata$CROPDMGEXP == "M" |
-                      econdata$CROPDMGEXP == "B", ]
-```
-
-However, now that we have removed observations with no economic consequences, we can use the aggregate function to see how many event types are still left in our data set.
+Now that we have converted the columns to actual dollars, we can use the aggregate function to calculate the total damage for both property and crops for each storm event type.
 
 ```{r Aggregate Types - Economic}
-EconAggregates <- aggregate(cbind(PROPDMG, CROPDMG) ~ EVTYPE, data = mdata, sum)
+EconAggregates <- aggregate(cbind(PROPDMGACT, CROPDMGACT) ~ EVTYPE, data = econSimple, sum)
+
+EconAggregates$TOTALDAMAGE <- EconAggregates$PROPDMGACT + EconAggregates$CROPDMGACT
+
+EconAggregates <- arrange(EconAggregates, TOTALDAMAGE, decreasing = TRUE)
 ```
 
 ### Remove this later if not needed
