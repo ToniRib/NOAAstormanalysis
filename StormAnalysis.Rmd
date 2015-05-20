@@ -1,6 +1,6 @@
 #Hazardous Weather Events in the United States Between 1950 and 2011
 
-## Overview
+## Synopsis
 
 In this report we aim to describe ...
 
@@ -18,7 +18,7 @@ sdata <- read.csv("repdata-data-StormData.csv.bz2", header = TRUE)
 
 The result is a data set of `r dim(sdata)[2]` variables and `r dim(sdata)[1]` observations.
 
-### Data Processing
+### Data Processing for Population Health
 
 In the first section of our analysis, we are going to be looking at events which are harmful to human health. We assume that 'harmful to human health' means there must be at least one injury or death related to the observation. We will create a data set that only includes observations with at least one death or injury and sort them based on # of deaths and injuries.
 
@@ -30,7 +30,7 @@ mdata <- arrange(mdata, FATALITIES, INJURIES, decreasing = TRUE)
 
 One of the columns we are interested in is the type of event (variable EVTYPE). A quick look at this variable using str shows that this is a factor variable with 985 levels. 
 
-```{r Initial Look At Data}
+```{r Initial Look At EVTYPE}
 str(mdata$EVTYPE)
 ```
 
@@ -40,7 +40,7 @@ However, now that we have removed observations with no injuries or fatalities, w
 sum_mdata <- aggregate(cbind(FATALITIES, INJURIES) ~ EVTYPE, data = mdata, sum)
 ```
 
-With this new data set, there are only `r dim(sum_mdata)[1]` events in our data set.
+With this new data set, there are only `r dim(sum_mdata)[1]` event types in our data set.
 
 We can also add a new column that contains the total number of fatalities + injuries for each event type. To make the data easier to read, we will sorts the data in decreasing order on this new column.
 
@@ -50,14 +50,74 @@ sum_mdata$Total <- sum_mdata$INJURIES + sum_mdata$FATALITIES
 sum_mdata <- arrange(sum_mdata, Total, decreasing = TRUE)
 ```
 
+## Results for Population Health
+
 Looking at the first 10 columns of the data set, we can see that there is a clear winner in all 3 columns: tornados.
 
 ```{r Tornado}
 head(sum_mdata, 10)
 ```
 
-It should be noted that while some event types should be combined for a more detailed analysis (for example: 'TSTM WIND' and 'THUNDERSTORM WIND') even adding these two columns together will only account to 10% of the total injuries and fatalities cause by tornados. Therefore, combining events was left out of this portion of the analysis as it was deemed unnecessary to answer the question.
+It should be noted that while some event types should be combined for a more detailed analysis (for example: 'TSTM WIND' and 'THUNDERSTORM WIND') even adding these two columns together will only account to 10% of the total injuries and fatalities cause by tornados. In fact, tornados count for approximately 62% of ALL fatalities & injuries in the data set.
 
+```{r Tornado Percentage}
+(sum_mdata[sum_mdata$EVTYPE == "TORNADO", 4] / (sum(sum_mdata$Total))) * 100
+```
+
+Therefore, combining events was left out of this portion of the analysis as it was deemed unnecessary to answer the question.
+
+### Data Processing for Economic Consequences
+
+For this section, we are interested in the economic consequences of storms. We will assume that 'economic consequences' means total cost of property damage plus crop damage. These are columns 'PROPDMG' and 'CROPDMG' in the original dataset (which we called sdata) with the associated columns 'PROPDMGEXP' and 'CROPDMGEXP' which give a one letter symbol signifying the units of the first two columns.
+
+Similar to our previous data processing, we will first remove all observations where no property damage or crop damage was present, as these are not relevant to our analysis.
+
+```{r Drop All Non Economic Damage Events, cache=TRUE}
+econdata <- sdata[sdata$PROPDMG > 0 | sdata$CROPDMG > 0, ]
+library(plyr)
+econdata <- arrange(econdata, PROPDMG, CROPDMG, decreasing = TRUE)
+```
+
+Before we can aggregate the data for each storm event type, we need to first take into account the fact that the numbers in the PROPDMG and CROPDMG columns are not all in the same units. We will use the symbols in the units columns to convert the numbers in the damage columns. First we will take a look at what symbols we have for each column and how many of our observations fall into each category.
+
+```{r Damage Units}
+## Property Damage Units
+table(econdata$PROPDMGEXP)
+## Crop Damage Units
+table(econdata$CROPDMGEXP)
+```
+
+There are some unusual units in the data, such as '?' or '+' which do not follow the rules outlined in section 2.7 of the National Weather Service [Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) which only allows <blank>, K (thousands), M (millions), and B (billions). However, from the tables above we can see that these account for very little of the observations, so we will drop them from the data.
+
+First, we will assume that capitalization does not matter and change all lowercase letters to uppercase.
+
+```{r Lower to Upper}
+## Property Damage Units
+econdata$PROPDMGEXP[econdata$PROPDMGEXP == "k"] <- "K"
+econdata$PROPDMGEXP[econdata$PROPDMGEXP == "m"] <- "M"
+# Crop Damage Units
+econdata$CROPDMGEXP[econdata$CROPDMGEXP == "k"] <- "K"
+econdata$CROPDMGEXP[econdata$CROPDMGEXP == "m"] <- "M"
+```
+
+Then we will drop observations without these units.
+
+```{r Drop Invalid Observations}
+econdata2 <- econdata[econdata$PROPDMGEXP == "" |
+                      econdata$PROPDMGEXP == "K" |
+                      econdata$PROPDMGEXP == "M" |
+                      econdata$PROPDMGEXP == "B" |
+                      econdata$CROPDMGEXP == "" |
+                      econdata$CROPDMGEXP == "K" |
+                      econdata$CROPDMGEXP == "M" |
+                      econdata$CROPDMGEXP == "B", ]
+```
+
+However, now that we have removed observations with no economic consequences, we can use the aggregate function to see how many event types are still left in our data set.
+
+```{r Aggregate Types - Economic}
+EconAggregates <- aggregate(cbind(PROPDMG, CROPDMG) ~ EVTYPE, data = mdata, sum)
+```
 
 ### Remove this later if not needed
 However, not all of these events are unique. Some labels have the same intent, but slightly different spelling, abbreviations, wording, or captalization. For example, searching the levels of EVTYPE for the words 'blowing snow' while ignoring case turns up 2 results, both of which are actually the same event type.
